@@ -18,7 +18,7 @@ public class TransactionIngestor {
      * step,type,amount,nameOrig,oldbalanceOrg,newbalanceOrig,nameDest,oldbalanceDest,newbalanceDest,isFraud,isFlaggedFraud
      *
      * @param filename the file path as String
-     * @param numberOfRowsLimit the number of rows to read
+     * @param numberOfRowsLimit the number of rows to read or -1 to read the whole file
      * @return A list of transactions from the file
      * @Author Leonardo Schwab
      */
