@@ -7,6 +7,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 public class TransactionIngestor {
 
@@ -25,34 +27,53 @@ public class TransactionIngestor {
     public List<Transaction> getTransactions(String filename, int numberOfRowsLimit){
         Path path = Path.of(filename);
 
-        ArrayList<Transaction> transactions = new ArrayList<>();
-        try (BufferedReader bufferedReader = Files.newBufferedReader(path)) {
+        try {
+            List<String> lines = Files.readAllLines(path);
 
-            int numberOfRows = 0;
-
-            String line = bufferedReader.readLine();
-            if (line.startsWith("step"))
-                line = bufferedReader.readLine();
-            while (line != null && (numberOfRowsLimit == -1 || numberOfRows < numberOfRowsLimit)) {
-                String[] split = line.split(",");
-
-                try {
-                    transactions.add(new Transaction(Long.parseLong(split[0]), Transaction.Payment_type.valueOf(split[1]),
-                            new BigDecimal(split[2]), split[3], new BigDecimal(split[4]), new BigDecimal(split[5]),
-                            split[6], new BigDecimal(split[7]), new BigDecimal(split[8]),
-                            Integer.parseInt(split[9]), Integer.parseInt(split[10])));
-                } catch (IllegalArgumentException e) {
-                    throw new RuntimeException("Incorrect file structure!" + "\r\n" + e);
-                }
-
-                line = bufferedReader.readLine();
-                numberOfRows++;
-            }
-
+            if (numberOfRowsLimit > 0)
+                return lines.stream()
+                        .skip(1)
+                        .limit(numberOfRowsLimit)
+                        .map(this::parseTransaction)
+                        .filter(Optional::isPresent)
+                        .map(Optional::get)
+                        .toList();
+            else
+                return lines.stream()
+                        .skip(1)
+                        .map(this::parseTransaction)
+                        .filter(Optional::isPresent)
+                        .map(Optional::get)
+                        .toList();
+            
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Erro ao ler o arquivo " + filename + ": " + e);
         }
+    }
 
-        return transactions;
+    private Optional<Transaction> parseTransaction(String line) {
+        try {
+            String[] split = line.split(",");
+
+            Long step = Long.parseLong(split[0]);
+
+            Transaction.Payment_type type = Transaction.Payment_type.valueOf(split[1]);
+
+            if (split[2] == null || split[2].isBlank()) throw new IllegalArgumentException("amount can't be null or blank");
+            BigDecimal amount = new BigDecimal(split[2]);
+
+            TransactionCustomer origin = new TransactionCustomer(split[3], new BigDecimal(split[4]), new BigDecimal(split[5]));
+
+            TransactionCustomer dest = new TransactionCustomer(split[6], new BigDecimal(split[7]), new BigDecimal(split[8]));
+
+            boolean isFraud = "1".equals(split[9]);
+
+            boolean isFlaggedFraud = "1".equals(split[10]);
+
+            return Optional.of(new Transaction(step, type, amount, origin, dest, isFraud, isFlaggedFraud));
+        } catch (IllegalArgumentException e) {
+            System.err.println("Error on line: " + line + " " + e);
+            return Optional.empty();
+        }
     }
 }
