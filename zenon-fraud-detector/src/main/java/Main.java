@@ -1,37 +1,53 @@
-import br.com.zenon.fraud.FraudAnalyzer;
-import br.com.zenon.fraud.Transaction;
-import br.com.zenon.fraud.TransactionCustomer;
-import br.com.zenon.fraud.TransactionIngestor;
+import br.com.zenon.fraud.*;
 
 void main() {
     TransactionIngestor transactionIngestor = new TransactionIngestor();
 
-    List<Transaction> transactions = transactionIngestor.getTransactions("data/PS_20174392719_1491204439457_log.csv",50000);
+    long tempoInicio = System.currentTimeMillis();
+    List<Transaction> transactions = transactionIngestor.getTransactions("data/PS_20174392719_1491204439457_log.csv",100_000);
+    long tempoFim = System.currentTimeMillis();
+    IO.println(tempoFim - tempoInicio + "ms");
+    IO.println(transactions.size());
 
-    FraudAnalyzer fraudAnalyzer = new FraudAnalyzer(transactions);
+    TransactionRepository transactionRepository = new TransactionListRepository(transactions);
+    tempoInicio = System.currentTimeMillis();
+    Optional<Transaction> optionalTransaction = transactionRepository.findTransactionByOriginCustomerName("C1231006815");
+    tempoFim = System.currentTimeMillis();
+    optionalTransaction.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para o cliente: C1231006815"));
+    System.out.println(tempoFim - tempoInicio + "ms");
 
-    IO.println("1. Total frauds: " + fraudAnalyzer.countFraudTransactions());
+    tempoInicio = System.currentTimeMillis();
+    Optional<Transaction> optionalTransaction1 = transactionRepository.findTransactionByOriginCustomerName("C12345");
+    tempoFim = System.currentTimeMillis();
+    optionalTransaction1.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para o cliente: C12345"));
+    System.out.println(tempoFim - tempoInicio + "ms");
 
-    List<BigDecimal> topFraudTransactions = fraudAnalyzer.findHighestAmountFrauds(3L);
+    tempoInicio = System.currentTimeMillis();
+    Optional<Transaction> optionalTransaction2 = transactionRepository.findTransactionByOriginCustomerName("C1868032458");
+    tempoFim = System.currentTimeMillis();
+    optionalTransaction2.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para o cliente: C1868032458"));
+    System.out.println(tempoFim - tempoInicio + "ms");
 
-    IO.println();
-    IO.println("2. Top 3 frauds by amount: ");
-    topFraudTransactions.forEach(amount -> IO.println("%.2f".formatted(amount)));
+    IO.println("-----------------------------------------------");
 
-    IO.println();
-    List<Transaction> topSuspectCustomers = fraudAnalyzer.FindMostSuspectCustomers(5L);
-    IO.println("3. Suspect customers: ");
-    topSuspectCustomers.stream()
-            .map(transaction -> transaction.origin().name())
-            .forEach(IO::println);
+    transactionRepository = new TransactionMapRepository(transactions);
+    tempoInicio = System.currentTimeMillis();
+    optionalTransaction = transactionRepository.findTransactionByOriginCustomerName("C1231006815");
+    tempoFim = System.currentTimeMillis();
+    optionalTransaction.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para o cliente: C1231006815"));
+    System.out.println(tempoFim - tempoInicio + "ms");
 
-    IO.println();
-    IO.println("4. Total fraud amount: " + fraudAnalyzer.totalFraudAmount());
+    tempoInicio = System.currentTimeMillis();
+    optionalTransaction1 = transactionRepository.findTransactionByOriginCustomerName("C12345");
+    tempoFim = System.currentTimeMillis();
+    optionalTransaction1.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para o cliente: C12345"));
+    System.out.println(tempoFim - tempoInicio + "ms");
 
-    IO.println();
-    IO.println("5. Frauds per type: ");
-    Map<Transaction.Payment_type, Long> fraudsPerType = fraudAnalyzer.GetFraudsPerType();
-    fraudsPerType.forEach((key, value) -> IO.println(key + ": " +value));
+    tempoInicio = System.currentTimeMillis();
+    optionalTransaction2 = transactionRepository.findTransactionByOriginCustomerName("C1868032458");
+    tempoFim = System.currentTimeMillis();
+    optionalTransaction2.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para o cliente: C1868032458"));
+    System.out.println(tempoFim - tempoInicio + "ms");
 }
 
 public static void outputTarefa2() {
@@ -65,4 +81,35 @@ public static void outputTarefa4() {
 
     IO.println(transactions.size());
     transactions.forEach(IO::println);
+}
+
+public static void outputTarefa5() {
+    TransactionIngestor transactionIngestor = new TransactionIngestor();
+
+    List<Transaction> transactions = transactionIngestor.getTransactions("data/PS_20174392719_1491204439457_log.csv",50000);
+
+    FraudAnalyzer fraudAnalyzer = new FraudAnalyzer(transactions);
+
+    IO.println("1. Total frauds: " + fraudAnalyzer.countFraudTransactions());
+
+    List<BigDecimal> topFraudTransactions = fraudAnalyzer.findHighestAmountFrauds(3L);
+
+    IO.println();
+    IO.println("2. Top 3 frauds by amount: ");
+    topFraudTransactions.forEach(amount -> IO.println("%.2f".formatted(amount)));
+
+    IO.println();
+    List<Transaction> topSuspectCustomers = fraudAnalyzer.FindMostSuspectCustomers(5L);
+    IO.println("3. Suspect customers: ");
+    topSuspectCustomers.stream()
+            .map(transaction -> transaction.origin().name())
+            .forEach(IO::println);
+
+    IO.println();
+    IO.println("4. Total fraud amount: " + fraudAnalyzer.totalFraudAmount());
+
+    IO.println();
+    IO.println("5. Frauds per type: ");
+    Map<Transaction.Payment_type, Long> fraudsPerType = fraudAnalyzer.GetFraudsPerType();
+    fraudsPerType.forEach((key, value) -> IO.println(key + ": " +value));
 }
