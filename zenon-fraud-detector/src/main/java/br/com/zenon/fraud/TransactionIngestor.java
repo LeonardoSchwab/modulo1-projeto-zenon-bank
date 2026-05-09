@@ -1,15 +1,11 @@
 package br.com.zenon.fraud;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 public class TransactionIngestor {
 
