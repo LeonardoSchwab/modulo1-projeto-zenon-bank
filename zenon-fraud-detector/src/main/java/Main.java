@@ -1,22 +1,48 @@
 import br.com.zenon.fraud.*;
 import br.com.zenon.fraud.TransactionReport.Statistics;
 
+import java.awt.*;
+import java.util.List;
+
 public static final String TRANSACTIONS_LOG_FILE = "data/PS_20174392719_1491204439457_log.csv";
 
 void main() {
-    TransactionReport transactionReport = new TransactionReport();
+    String languageOption;
+    try (Scanner scanner = new Scanner(System.in)) {
+        System.out.println("Selecione o idioma que deseja exportar o relatório.");
+        System.out.println("ptBR(português do Brasil), enUS(inglês do Estados Unidos)");
+        languageOption = scanner.nextLine();
+    }
 
+    Locale locale;
+    if (languageOption.equalsIgnoreCase("ptBR")) {
+        locale = Locale.of("pt", "BR");
+    } else if (languageOption.equalsIgnoreCase("enUS")) {
+        locale = Locale.US;
+    } else {
+        throw new RuntimeException("Idioma selecionado inválido!");
+    }
+
+    ResourceBundle reportBundle = ResourceBundle.getBundle("report", locale);
+    NumberFormat currencyFormatter = DecimalFormat.getCurrencyInstance(locale);
+    NumberFormat numberFormatter = NumberFormat.getNumberInstance(locale);
+
+    currencyFormatter.setCurrency(Currency.getInstance("USD"));
+
+    TransactionReport transactionReport = new TransactionReport();
 
     long tempoInicio = System.currentTimeMillis();
     Statistics statistics = transactionReport.generateStatistics(TRANSACTIONS_LOG_FILE);
+    IO.println();
     IO.println("""
-            Total de linhas: %d
-            Total de fraudes: %d
-            Valor total transacionado: %.2f\s
-           \s""".formatted(statistics.totalTransactions(), statistics.totalFrauds(), statistics.totalAmount()));
+           %s: %s
+           %s: %s
+           %s: %s\s
+           \s""".formatted(reportBundle.getString("label.total.lines"), numberFormatter.format(statistics.totalTransactions()),
+            reportBundle.getString("label.total.frauds"), numberFormatter.format(statistics.totalFrauds()),
+            reportBundle.getString("label.total.amount"), currencyFormatter.format(statistics.totalAmount())));
     long tempoFim = System.currentTimeMillis();
     IO.println(tempoFim - tempoInicio + "ms");
-
 }
 
 public static void outputTarefa2() {
