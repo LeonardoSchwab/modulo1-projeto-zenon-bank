@@ -13,12 +13,30 @@ public class TransactionMapRepository implements TransactionRepository {
 
     public TransactionMapRepository(List<Transaction> transactions) {
         Objects.requireNonNull(transactions);
-        this.transactions = transactions.stream()
-                .collect(Collectors.toMap(transaction -> transaction.origin().name(), Function.identity(), (transaction, transaction2) -> transaction));
+        this.transactions = listToMap(transactions);
+    }
+
+    private Map<String, Transaction> listToMap(List<Transaction> transactions) {
+        return transactions.stream()
+               .collect(Collectors.toMap(transaction -> transaction.origin().name(), Function.identity(), (transaction, transaction2) -> transaction));
     }
 
     @Override
-    public Optional<Transaction> findTransactionByOriginCustomerName(String name) {
+    public Optional<Transaction> findByOriginName(String name) {
         return Optional.ofNullable(transactions.get(name));
     }
+
+    @Override
+    public boolean save(Transaction transaction) {
+        this.transactions.putIfAbsent(transaction.origin().name(), transaction);
+        return true;
+    }
+
+    @Override
+    public boolean save(List<Transaction> transactions) {
+        this.transactions.putAll(listToMap(transactions));
+        return true;
+    }
+
+
 }

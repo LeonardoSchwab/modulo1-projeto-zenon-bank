@@ -1,0 +1,14 @@
+services:
+  db:
+    image: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 123
+#      MYSQL_USER: teste
+      MYSQL_DATABASE: zenon
+    ports:
+      - '3306:3306'
+    volumes:
+      - zenon:/var/lib/docker/volumes/zenon_db.zenon/_data
+volumes:
+  zenon:

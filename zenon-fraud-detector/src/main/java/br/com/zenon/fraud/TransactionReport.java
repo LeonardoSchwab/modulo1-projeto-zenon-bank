@@ -34,11 +34,11 @@ public class TransactionReport {
     public Statistics generateStatistics(String filename) {
         Path path = Path.of(filename);
 
-        try(Stream<String> lines = Files.lines(path)) {
+       try(Stream<String> lines = Files.lines(path)) {
             return lines
                     .skip(1)
                     .map(this::parseTransaction)
-                    .filter(Optional::isPresent)
+                     .filter(Optional::isPresent)
                     .map(Optional::get)
                     .reduce(Statistics.STATISTICS_ZERO,
                             Statistics::addReportTransaction,

@@ -1,48 +1,33 @@
 import br.com.zenon.fraud.*;
 import br.com.zenon.fraud.TransactionReport.Statistics;
 
-import java.awt.*;
+import java.sql.SQLException;
 import java.util.List;
 
 public static final String TRANSACTIONS_LOG_FILE = "data/PS_20174392719_1491204439457_log.csv";
 
 void main() {
-    String languageOption;
-    try (Scanner scanner = new Scanner(System.in)) {
-        System.out.println("Selecione o idioma que deseja exportar o relatório.");
-        System.out.println("ptBR(português do Brasil), enUS(inglês do Estados Unidos)");
-        languageOption = scanner.nextLine();
+    TransactionIngestor transactionIngestor = new TransactionIngestor();
+    List<Transaction> transactions = transactionIngestor.getTransactions(TRANSACTIONS_LOG_FILE, 10_000);
+
+    TransactionRepository transactionRepository = null;
+    try {
+        transactionRepository = new TransactionSQLRepository(transactions);
+
+        long tempoInicio = System.currentTimeMillis();
+        transactionRepository.save(transactions);
+        long tempoFim = System.currentTimeMillis();
+        IO.println(tempoFim - tempoInicio + "ms");
+
+        Optional<Transaction> transactionByName = transactionRepository.findByOriginName("C1231006815");
+        Optional<Transaction> transactionByName2 = transactionRepository.findByOriginName("C12345");
+
+        transactionByName.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para a origem: C1231006815"));
+        transactionByName2.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para a origem C12345"));
+
+    } catch (SQLException e) {
+        throw new RuntimeException(e);
     }
-
-    Locale locale;
-    if (languageOption.equalsIgnoreCase("ptBR")) {
-        locale = Locale.of("pt", "BR");
-    } else if (languageOption.equalsIgnoreCase("enUS")) {
-        locale = Locale.US;
-    } else {
-        throw new RuntimeException("Idioma selecionado inválido!");
-    }
-
-    ResourceBundle reportBundle = ResourceBundle.getBundle("report", locale);
-    NumberFormat currencyFormatter = DecimalFormat.getCurrencyInstance(locale);
-    NumberFormat numberFormatter = NumberFormat.getNumberInstance(locale);
-
-    currencyFormatter.setCurrency(Currency.getInstance("USD"));
-
-    TransactionReport transactionReport = new TransactionReport();
-
-    long tempoInicio = System.currentTimeMillis();
-    Statistics statistics = transactionReport.generateStatistics(TRANSACTIONS_LOG_FILE);
-    IO.println();
-    IO.println("""
-           %s: %s
-           %s: %s
-           %s: %s\s
-           \s""".formatted(reportBundle.getString("label.total.lines"), numberFormatter.format(statistics.totalTransactions()),
-            reportBundle.getString("label.total.frauds"), numberFormatter.format(statistics.totalFrauds()),
-            reportBundle.getString("label.total.amount"), currencyFormatter.format(statistics.totalAmount())));
-    long tempoFim = System.currentTimeMillis();
-    IO.println(tempoFim - tempoInicio + "ms");
 }
 
 public static void outputTarefa2() {
@@ -120,19 +105,19 @@ public static void outputTarefa06() {
 
     TransactionRepository transactionRepository = new TransactionListRepository(transactions);
     tempoInicio = System.currentTimeMillis();
-    Optional<Transaction> optionalTransaction = transactionRepository.findTransactionByOriginCustomerName("C1231006815");
+    Optional<Transaction> optionalTransaction = transactionRepository.findByOriginName("C1231006815");
     tempoFim = System.currentTimeMillis();
     optionalTransaction.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para o cliente: C1231006815"));
     System.out.println(tempoFim - tempoInicio + "ms");
 
     tempoInicio = System.currentTimeMillis();
-    Optional<Transaction> optionalTransaction1 = transactionRepository.findTransactionByOriginCustomerName("C12345");
+    Optional<Transaction> optionalTransaction1 = transactionRepository.findByOriginName("C12345");
     tempoFim = System.currentTimeMillis();
     optionalTransaction1.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para o cliente: C12345"));
     System.out.println(tempoFim - tempoInicio + "ms");
 
     tempoInicio = System.currentTimeMillis();
-    Optional<Transaction> optionalTransaction2 = transactionRepository.findTransactionByOriginCustomerName("C1868032458");
+    Optional<Transaction> optionalTransaction2 = transactionRepository.findByOriginName("C1868032458");
     tempoFim = System.currentTimeMillis();
     optionalTransaction2.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para o cliente: C1868032458"));
     System.out.println(tempoFim - tempoInicio + "ms");
@@ -141,20 +126,59 @@ public static void outputTarefa06() {
 
     transactionRepository = new TransactionMapRepository(transactions);
     tempoInicio = System.currentTimeMillis();
-    optionalTransaction = transactionRepository.findTransactionByOriginCustomerName("C1231006815");
+    optionalTransaction = transactionRepository.findByOriginName("C1231006815");
     tempoFim = System.currentTimeMillis();
     optionalTransaction.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para o cliente: C1231006815"));
     System.out.println(tempoFim - tempoInicio + "ms");
 
     tempoInicio = System.currentTimeMillis();
-    optionalTransaction1 = transactionRepository.findTransactionByOriginCustomerName("C12345");
+    optionalTransaction1 = transactionRepository.findByOriginName("C12345");
     tempoFim = System.currentTimeMillis();
     optionalTransaction1.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para o cliente: C12345"));
     System.out.println(tempoFim - tempoInicio + "ms");
 
     tempoInicio = System.currentTimeMillis();
-    optionalTransaction2 = transactionRepository.findTransactionByOriginCustomerName("C1868032458");
+    optionalTransaction2 = transactionRepository.findByOriginName("C1868032458");
     tempoFim = System.currentTimeMillis();
     optionalTransaction2.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para o cliente: C1868032458"));
     System.out.println(tempoFim - tempoInicio + "ms");
+}
+
+public static void outputTarefa08() {
+    String languageOption;
+    try (Scanner scanner = new Scanner(System.in)) {
+        System.out.println("Selecione o idioma que deseja exportar o relatório.");
+        System.out.println("ptBR(português do Brasil), enUS(inglês do Estados Unidos)");
+        languageOption = scanner.nextLine();
+    }
+
+    Locale locale;
+    if (languageOption.equalsIgnoreCase("ptBR")) {
+        locale = Locale.of("pt", "BR");
+    } else if (languageOption.equalsIgnoreCase("enUS")) {
+        locale = Locale.US;
+    } else {
+        throw new RuntimeException("Idioma selecionado inválido!");
+    }
+
+    ResourceBundle reportBundle = ResourceBundle.getBundle("report", locale);
+    NumberFormat currencyFormatter = DecimalFormat.getCurrencyInstance(locale);
+    NumberFormat numberFormatter = NumberFormat.getNumberInstance(locale);
+
+    currencyFormatter.setCurrency(Currency.getInstance("USD"));
+
+    TransactionReport transactionReport = new TransactionReport();
+
+    long tempoInicio = System.currentTimeMillis();
+    Statistics statistics = transactionReport.generateStatistics(TRANSACTIONS_LOG_FILE);
+    IO.println();
+    IO.println("""
+           %s: %s
+           %s: %s
+           %s: %s\s
+           \s""".formatted(reportBundle.getString("label.total.lines"), numberFormatter.format(statistics.totalTransactions()),
+            reportBundle.getString("label.total.frauds"), numberFormatter.format(statistics.totalFrauds()),
+            reportBundle.getString("label.total.amount"), currencyFormatter.format(statistics.totalAmount())));
+    long tempoFim = System.currentTimeMillis();
+    IO.println(tempoFim - tempoInicio + "ms");
 }
