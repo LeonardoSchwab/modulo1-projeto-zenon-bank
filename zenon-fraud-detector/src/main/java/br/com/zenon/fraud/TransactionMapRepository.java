@@ -33,7 +33,7 @@ public class TransactionMapRepository implements TransactionRepository {
     }
 
     @Override
-    public boolean save(List<Transaction> transactions) {
+    public boolean saveAll(List<Transaction> transactions) {
         this.transactions.putAll(listToMap(transactions));
         return true;
     }

@@ -1,33 +1,23 @@
 import br.com.zenon.fraud.*;
 import br.com.zenon.fraud.TransactionReport.Statistics;
 
-import java.sql.SQLException;
 import java.util.List;
 
 public static final String TRANSACTIONS_LOG_FILE = "data/PS_20174392719_1491204439457_log.csv";
 
 void main() {
-    TransactionIngestor transactionIngestor = new TransactionIngestor();
-    List<Transaction> transactions = transactionIngestor.getTransactions(TRANSACTIONS_LOG_FILE, 10_000);
+    EfficientTransactionIngestor efficientTransactionIngestor = new EfficientTransactionIngestor();
+    TransactionRepository transactionSQLRepository = new TransactionSQLRepository();
 
-    TransactionRepository transactionRepository = null;
-    try {
-        transactionRepository = new TransactionSQLRepository(transactions);
+    long tempoInicio = System.currentTimeMillis();
+//    efficientTransactionIngestor.readAsStream(TRANSACTIONS_LOG_FILE, 0, transactionSQLRepository::save);
+    long tempoFim = System.currentTimeMillis();
+    IO.println(tempoFim - tempoInicio + "ms");
 
-        long tempoInicio = System.currentTimeMillis();
-        transactionRepository.save(transactions);
-        long tempoFim = System.currentTimeMillis();
-        IO.println(tempoFim - tempoInicio + "ms");
-
-        Optional<Transaction> transactionByName = transactionRepository.findByOriginName("C1231006815");
-        Optional<Transaction> transactionByName2 = transactionRepository.findByOriginName("C12345");
-
-        transactionByName.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para a origem: C1231006815"));
-        transactionByName2.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para a origem C12345"));
-
-    } catch (SQLException e) {
-        throw new RuntimeException(e);
-    }
+    tempoInicio = System.currentTimeMillis();
+    efficientTransactionIngestor.readAsBatch(TRANSACTIONS_LOG_FILE, 0, transactionSQLRepository::saveAll);
+    tempoFim = System.currentTimeMillis();
+    IO.println(tempoFim - tempoInicio + "ms");
 }
 
 public static void outputTarefa2() {
@@ -181,4 +171,28 @@ public static void outputTarefa08() {
             reportBundle.getString("label.total.amount"), currencyFormatter.format(statistics.totalAmount())));
     long tempoFim = System.currentTimeMillis();
     IO.println(tempoFim - tempoInicio + "ms");
+}
+
+public static void outputTarefa09() {
+    TransactionIngestor transactionIngestor = new TransactionIngestor();
+    List<Transaction> transactions = transactionIngestor.getTransactions(TRANSACTIONS_LOG_FILE, 10_000);
+
+    TransactionRepository transactionRepository = null;
+    try {
+        transactionRepository = new TransactionSQLRepository();
+
+        long tempoInicio = System.currentTimeMillis();
+        transactionRepository.saveAll(transactions);
+        long tempoFim = System.currentTimeMillis();
+        IO.println(tempoFim - tempoInicio + "ms");
+
+        Optional<Transaction> transactionByName = transactionRepository.findByOriginName("C1231006815");
+        Optional<Transaction> transactionByName2 = transactionRepository.findByOriginName("C12345");
+
+        transactionByName.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para a origem: C1231006815"));
+        transactionByName2.ifPresentOrElse(IO::println, () -> IO.println("Transação não encontrada para a origem C12345"));
+
+    } catch (Exception e) {
+        throw new RuntimeException(e);
+    }
 }

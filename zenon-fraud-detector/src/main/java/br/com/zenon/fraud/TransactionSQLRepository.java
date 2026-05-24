@@ -10,19 +10,13 @@ import java.util.concurrent.*;
 
 public class TransactionSQLRepository implements TransactionRepository {
 
-    private final List<Transaction> transactions;
-    private short countBatch = 0;
-    Semaphore semaphore = new Semaphore(100);
-
-    public TransactionSQLRepository(List<Transaction> transactions) throws SQLException {
-        Objects.requireNonNull(transactions);
-        this.transactions = transactions;
+    public TransactionSQLRepository() {
     }
 
     @Override
     public Optional<Transaction> findByOriginName(String name) {
 
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/zenon","root", "123");
+        try (Connection connection = ConnectionFactory.getConnection();
              PreparedStatement preparedStatement = connection.prepareStatement("SELECT step,paymentType,amount,nameOrig,oldbalanceOrig,newbalanceOrig,nameDest,oldbalanceDest,newbalanceDest,isFraud,isFlaggedFraud from TRANSACTIONS WHERE nameOrig = ? LIMIT 1");)
         {
             preparedStatement.setString(1, name);
@@ -66,23 +60,10 @@ public class TransactionSQLRepository implements TransactionRepository {
     public boolean save(Transaction transaction) {
         String sql = "INSERT INTO TRANSACTIONS (step,paymentType,amount,nameOrig,oldbalanceOrig,newbalanceOrig,nameDest,oldbalanceDest,newbalanceDest,isFraud,isFlaggedFraud) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
 
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/zenon","root", "123");
+        try (Connection connection = ConnectionFactory.getConnection();
              PreparedStatement preparedStatement = connection.prepareStatement(sql);) {
 
-            preparedStatement.setLong(1, transaction.step());
-            preparedStatement.setString(2, transaction.type().name());
-            preparedStatement.setBigDecimal(3, transaction.amount());
-
-            preparedStatement.setString(4, transaction.origin().name());
-            preparedStatement.setBigDecimal(5, transaction.origin().oldBalance());
-            preparedStatement.setBigDecimal(6, transaction.origin().newBalance());
-
-            preparedStatement.setString(7, transaction.dest().name());
-            preparedStatement.setBigDecimal(8, transaction.dest().oldBalance());
-            preparedStatement.setBigDecimal(9, transaction.dest().newBalance());
-
-            preparedStatement.setBoolean(10, transaction.isFraud());
-            preparedStatement.setBoolean(11, transaction.isFlaggedFraud());
+            mapTransactionToPreparedStatement(transaction, preparedStatement);
 
             return preparedStatement.execute();
         } catch (SQLException e) {
@@ -90,79 +71,48 @@ public class TransactionSQLRepository implements TransactionRepository {
         }
     }
 
-//    @Override
-//    public boolean save(List<Transaction> transactions) {
-//        String sql = "INSERT INTO TRANSACTIONS (step,paymentType,amount,nameOrig,oldbalanceOrig,newbalanceOrig,nameDest,oldbalanceDest,newbalanceDest,isFraud,isFlaggedFraud) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
-//
-//        try (Connection connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/zenon","root", "123");
-//            PreparedStatement preparedStatement = connection.prepareStatement(sql);
-//            ExecutorService service = Executors.newVirtualThreadPerTaskExecutor();) {
-//
-//            Future<?> submit = null;
-//            for (Transaction transaction : transactions) {
-//                submit = service.submit(() -> {
-//                    try {
-//                        processTransactions(transaction, preparedStatement);
-//                    } catch (SQLException e) {
-//                        throw new RuntimeException(e);
-//                    }
-//                });
-//            }
-//
-//            if (submit != null) {
-//                submit.get();
-//            }
-//
-//            preparedStatement.executeBatch();
-//
-//            return true;
-//        } catch (SQLException e) {
-//            throw new RuntimeException(e);
-//        } catch (ExecutionException e) {
-//            throw new RuntimeException(e);
-//        } catch (InterruptedException e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
-
     @Override
-    public boolean save(List<Transaction> transactions) {
+    public boolean saveAll(List<Transaction> transactions) {
         String sql = "INSERT INTO TRANSACTIONS (step,paymentType,amount,nameOrig,oldbalanceOrig,newbalanceOrig,nameDest,oldbalanceDest,newbalanceDest,isFraud,isFlaggedFraud) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
 
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/zenon?rewriteBatchedStatements=true", "root", "123");
+        try (Connection connection = ConnectionFactory.getConnection();
              PreparedStatement preparedStatement = connection.prepareStatement(sql);) {
 
             short countBatch = 0;
             for (Transaction transaction : transactions) {
-                preparedStatement.setLong(1, transaction.step());
-                preparedStatement.setString(2, transaction.type().name());
-                preparedStatement.setBigDecimal(3, transaction.amount());
-
-                preparedStatement.setString(4, transaction.origin().name());
-                preparedStatement.setBigDecimal(5, transaction.origin().oldBalance());
-                preparedStatement.setBigDecimal(6, transaction.origin().newBalance());
-
-                preparedStatement.setString(7, transaction.dest().name());
-                preparedStatement.setBigDecimal(8, transaction.dest().oldBalance());
-                preparedStatement.setBigDecimal(9, transaction.dest().newBalance());
-
-                preparedStatement.setBoolean(10, transaction.isFraud());
-                preparedStatement.setBoolean(11, transaction.isFlaggedFraud());
+                mapTransactionToPreparedStatement(transaction, preparedStatement);
 
                 preparedStatement.addBatch();
 
                 countBatch++;
-
                 if (countBatch == 1000) {
                     preparedStatement.executeBatch();
                     countBatch = 0;
                 }
             }
-            preparedStatement.executeBatch();
+            if (countBatch > 0) preparedStatement.executeBatch();
+
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
 
         return true;
+    }
+
+    public void mapTransactionToPreparedStatement(Transaction transaction, PreparedStatement preparedStatement) throws SQLException {
+        preparedStatement.setLong(1, transaction.step());
+        preparedStatement.setString(2, transaction.type().name());
+        preparedStatement.setBigDecimal(3, transaction.amount());
+
+        preparedStatement.setString(4, transaction.origin().name());
+        preparedStatement.setBigDecimal(5, transaction.origin().oldBalance());
+        preparedStatement.setBigDecimal(6, transaction.origin().newBalance());
+
+        preparedStatement.setString(7, transaction.dest().name());
+        preparedStatement.setBigDecimal(8, transaction.dest().oldBalance());
+        preparedStatement.setBigDecimal(9, transaction.dest().newBalance());
+
+        preparedStatement.setBoolean(10, transaction.isFraud());
+        preparedStatement.setBoolean(11, transaction.isFlaggedFraud());
     }
 }
